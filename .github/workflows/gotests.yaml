@@ -16,45 +16,38 @@ name: Go tests
 
 on:
   workflow_call:
-
     inputs:
-      coverage:
-        description: 'Check the code coverage'
-        type: boolean
-        default: true
-
-      coverage_threshold:
-        description: 'Coverage threshold'
-        required: false
-        type: number
-        default: 0
+      use_postgres:
+          description: Whether to use PostgreSQL
+          required: false
+          type: boolean
+          default: false
 
 jobs:
   gotests:
     runs-on: ubuntu-latest
-    container:
-        image: registry.access.redhat.com/ubi9/go-toolset:latest
+    services:
+      database:
+        image: ${{ inputs.use_postgres == true && 'postgres:latest' || '' }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+
     name: Go tests
     steps:
       - uses: actions/checkout@v6
-      - name: Unit tests
-        run: make test
-      
-      - name: Prepare workflow
-        if: inputs.coverage == true
-        uses: actions/checkout@v6
+      - uses: actions/setup-go@v4
         with:
-          repository: RedHatInsights/processing-tools
-          path: processing-tools
+          go-version: '1.24'
+      - name: Unit tests
+        run: go test -coverprofile coverage.out $(go list ./... | grep -v tests)
 
-      - name: Retrieve code coverage
-        if: inputs.coverage == true
-        env:
-          COV_THRESHOLD: ${{ inputs.coverage_threshold }}
-        run: ./processing-tools/go-checkers/check_coverage.sh
+      - name: Generate coverage report
+        run: go tool cover -func=coverage.out
 
-      - name: Push coverage report to Codecov
-        if: inputs.coverage == true
-        uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
