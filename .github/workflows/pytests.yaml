@@ -47,12 +47,6 @@ on:
         type: string
         default: '.'
 
-      requirements_file:
-        description: 'Path to pip requirements file'
-        required: false
-        type: string
-        default: 'requirements.txt'
-
       python_version:
         description: 'Python version to use'
         required: false
@@ -75,10 +69,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ -f "${{ inputs.requirements_file }}" ]; then
-            pip install -r ${{ inputs.requirements_file }}
-          fi
-          pip install pytest-cov
+          pip install -U pip
+          pip install pytest pytest-cov
+          pip install '.[test]'
 
       - name: Install package
         if: inputs.install_package == true
@@ -86,14 +79,14 @@ jobs:
 
       - name: Unit tests
         if: inputs.coverage != true
-        run: python -m pytest
+        run: pytest
 
       - name: Unit tests with coverage
         if: inputs.coverage == true
-        run: python -m pytest --cov=${{ inputs.packages }} --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=${{ inputs.coverage_threshold }} ${{ inputs.cov_branch && '--cov-branch' || '' }}
+        run: pytest --cov=${{ inputs.packages }} --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=${{ inputs.coverage_threshold }} ${{ inputs.cov_branch && '--cov-branch' || '' }}
 
       - name: Push coverage report to Codecov
-        if: inputs.coverage == true
+        if: inputs.coverage == true && inputs.python_version == '3.11'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
