@@ -29,6 +29,12 @@ on:
         type: number
         default: 0
 
+      use_database:
+        description: 'The unit tests need a database'
+        required: false
+        type: boolean
+        default: false
+
 jobs:
   gotests:
     runs-on: ubuntu-latest
@@ -36,6 +42,15 @@ jobs:
       contents: read
     container:
         image: registry.access.redhat.com/ubi9/go-toolset:latest
+
+    services:
+      database:
+        image: ${{ inputs.use_database == true && 'postgres' || '' }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+
     name: Go tests
     steps:
       - uses: actions/checkout@v6
